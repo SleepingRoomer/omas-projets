@@ -34,6 +34,12 @@ export async function postsOf(db, personId) {
 // Personnes qui tiennent un poste aujourd'hui (titulaires et suppléants), avec e-mail
 export async function holdersOf(db, postIds) {
   if (!postIds.length) return [];
+  // au plus 100 paramètres par requête D1 : la liste apparaît deux fois, on découpe par 45
+  if (postIds.length > 45) {
+    const out = [];
+    for (let i = 0; i < postIds.length; i += 45) out.push(...await holdersOf(db, postIds.slice(i, i + 45)));
+    return out;
+  }
   const t = today();
   const ph = postIds.map(() => '?').join(',');
   return all(db, `SELECT DISTINCT p.id, p.name, p.email, x.post_id FROM (

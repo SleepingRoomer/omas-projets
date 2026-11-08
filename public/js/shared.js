@@ -9,11 +9,11 @@ export const DEFAULT_RULES = { l1: 150, l2: 500, delays: { 0: 3, 1: 5, 2: 7, 3: 
 export const DOMAINS = {
   SAV: 'Savoir', ETH: 'Éthique', SOL: 'Solidarités', COM: 'Communication', RES: 'Réseau', DEV: 'Développement',
   PRP: 'PRP', LOG: 'Logistique',
-  MED: 'Médecine', PHA: 'Pharmacie', ODO: 'Odontologie', MAI: 'Maïeutique', KIN: 'Kinésithérapie',
+  MED: 'Médecine', PHA: 'Pharmacie', ODO: 'Odontologie', MAI: 'Maïeutique', KIN: 'Kinésithérapie', PSY: 'Psychologie', INF: 'Soins infirmiers',
   INT: 'Internes', PRO: 'Professionnels', VIE: 'Vie de l\'antenne',
 };
 export const POLE_CODES = ['SAV', 'ETH', 'SOL', 'COM', 'RES', 'DEV', 'PRP', 'LOG'];
-export const FILIERE_CODES = ['MED', 'PHA', 'ODO', 'MAI', 'KIN'];
+export const FILIERE_CODES = ['MED', 'PHA', 'ODO', 'MAI', 'KIN', 'PSY', 'INF'];
 
 export const TYPES = {
   tutorat: 'Tutorat, séance de travail', conference: 'Conférence, table ronde', atelier: 'Atelier, formation', prevention: 'Action de prévention',
@@ -116,3 +116,18 @@ export function missingFields(p, lines, level) {
 }
 
 export const money = (n) => `${(Number(n) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
+
+// Demandes entre responsables
+export const REQUEST_KINDS = {
+  info: 'Pour information', avis: 'Demande d\'avis', collaboration: 'Proposition de collaboration', moyens: 'Demande de moyens ou d\'intervenants', question: 'Question',
+};
+export const REQUEST_STATUSES = {
+  ouverte: { label: 'En attente de réponse', tone: 'warn' }, acceptee: { label: 'Acceptée', tone: 'ok' }, vue: { label: 'Bien noté', tone: 'ok' },
+  declinee: { label: 'Déclinée', tone: 'ko' }, close: { label: 'Close', tone: 'muted' },
+};
+
+// Planning : éléments générés à partir des projets
+export const PLANNING_KINDS = {
+  projet: 'Projet', instruction: 'Projet en instruction', com: 'Lancement de la communication', logi: 'Confirmation logistique', bilan: 'Bilan attendu', decision: 'Décision à rendre',
+};
+export const addDays = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };

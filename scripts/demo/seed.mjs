@@ -102,3 +102,32 @@ const all = await admin.call('/projects?scope=all');
 console.log(`${all.length} projets :`, Object.entries(all.reduce((m, p) => ({ ...m, [p.status]: (m[p.status] || 0) + 1 }), {})).map(([k, v]) => `${k} ${v}`).join(', '));
 console.log('Connexion de test :');
 for (const n of ['Sofia Haddad', 'Lokmann Hamidi', 'Rayhane Sahli', 'Ismaïl Touré']) console.log(` ${n} → ${(await admin.call(`/admin/people/${people[n]}/link`, 'POST', { send: false })).url}`);
+
+// ---------- demandes entre responsables ----------
+// un poste de filière Psychologie (absent de l'organigramme IDF de départ) et deux responsables de plus
+const psyPost = (await admin.call('/admin/posts', 'POST', { unit_id: unit('IDF'), code: 'resp_filiere', label: 'Responsable filière Psychologie IDF', domain: 'PSY', parent_id: post('IDF', 'manager').id })).id;
+const extra = [['Inès Kaci', post('IDF', 'resp_filiere', 'MED').id], ['Samir Aït-Ali', psyPost]];
+for (const [name, postId] of extra) {
+  const email = `${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]+/g, '.')}@exemple.org`;
+  const id = (await admin.call('/admin/people', 'POST', { name, email })).id;
+  await admin.call('/admin/assign', 'POST', { person_id: id, post_id: postId });
+  people[name] = id;
+}
+const ines = await as('Inès Kaci');
+const sm = (await ines.call('/projects', 'POST', { title: 'Journée santé mentale des externes', type: 'prevention', unit_id: unit('IDF'), domain: 'MED', starts_at: d(26), start_time: '13:30', location: 'Faculté de santé, site Bichat', audience: 'Externes DFASM des quatre antennes', expected: 60, summary: 'Après-midi d’échanges sur la santé mentale pendant l’externat, avec des consultations individuelles proposées par des psychologues de l’OMAS.', objective: 'Faire connaître les ressources d’écoute et lever le tabou de la souffrance en stage.', plan_com: d(12), plan_logi: d(19), lines: [{ kind: 'depense', label: 'Collation', amount: 120, payment: 'carte' }] })).id;
+await ines.call(`/projects/${sm}/submit`, 'POST');
+const o3 = await admin.call('/org');
+const psyHolder = o3.holders.find((h) => h.post_id === psyPost);
+const solPost = post('IDF', 'resp_pole', 'SOL').id;
+const comPost = post('IDF', 'resp_pole', 'COM').id;
+const { ids } = await ines.call('/requests', 'POST', { to_post_ids: [psyPost], kind: 'collaboration', project_id: sm, subject: 'Journée santé mentale : des psychologues pour les consultations', body: 'Bonjour Samir,\nJe prépare avec la filière médecine une après-midi sur la santé mentale des externes, le jeudi indiqué sur la fiche. On aimerait proposer des consultations individuelles de 20 minutes.\nEst-ce que la filière psychologie pourrait mobiliser trois ou quatre psychologues ? On s’occupe de la salle et de la communication.' });
+await ines.call('/requests', 'POST', { to_post_ids: [solPost], kind: 'info', project_id: sm, subject: 'Journée santé mentale des externes', body: 'Pour info : on organise une après-midi santé mentale pour les externes. Si le pôle Solidarités a des ressources d’écoute à présenter, tu es le bienvenu.' });
+const samir = await as('Samir Aït-Ali');
+await samir.call(`/requests/${ids[0]}/messages`, 'POST', { body: 'Très bonne idée. J’ai trois psychologues partantes. Il faudrait deux salles fermées pour les consultations, c’est possible ?' });
+await ines.call(`/requests/${ids[0]}/messages`, 'POST', { body: 'Oui, la fac nous prête deux bureaux à côté de l’amphi. Je te mets en co-organisation sur la fiche.' });
+await samir.call(`/requests/${ids[0]}/answer`, 'POST', { status: 'acceptee', body: 'On en est. Je t’envoie les noms d’ici la fin de la semaine.' });
+const lok = await as('Lokmann Hamidi');
+await lok.call('/requests', 'POST', { to_post_ids: [comPost], kind: 'moyens', subject: 'Affiche pour le petit-déjeuner solidaire', body: 'Salut Hana, est-ce que le pôle Communication peut nous faire une affiche aux couleurs OMAS pour le petit-déjeuner de rentrée à Bichat ? Les infos sont sur la fiche.' });
+const nuri = await as('Abdelmalek Slimani');
+await nuri.call('/requests', 'POST', { to_post_ids: [psyPost, post('IDF', 'resp_pole', 'ETH').id].filter(Boolean), kind: 'avis', subject: 'Conférence fin de vie : un regard de psychologue ?', body: 'On prépare une conférence sur la fin de vie à Créteil. Un psychologue pourrait-il intervenir sur l’accompagnement des familles ? Votre avis nous intéresse.' }).catch(() => {});
+console.log('Demandes créées');

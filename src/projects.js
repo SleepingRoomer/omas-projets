@@ -5,6 +5,7 @@ import {
 } from '../public/js/shared.js';
 import { all, one, run, httpError, today, now, str, bool, getRules, holdersOf, need, csvCell } from './util.js';
 import { sendMails, layout, esc, longDate, siteUrl, later } from './mail.js';
+import { requestsOfProject } from './requests.js';
 
 const FIELDS = ['title', 'type', 'unit_id', 'domain', 'owner_post_id', 'starts_at', 'ends_at', 'start_time', 'location', 'location_kind', 'audience', 'expected', 'summary', 'objective',
   'needs_room', 'needs_material', 'needs_com', 'external_speaker', 'external_com', 'partner', 'national', 'details', 'risks', 'plan_com', 'plan_logi', 'public_link'];
@@ -49,7 +50,9 @@ async function access(db, me, p) {
   // chefs d'une structure : voient tout ce qui s'y passe
   const headOfUnit = me.posts.some((x) => x.is_head && (x.unit_id === p.unit_id || x.unit_kind === 'localite'));
   const isPublicStatus = ['valide', 'realise', 'cloture'].includes(p.status);
-  const canSee = me.admin || isOwner || isMember || inChain || functional || headOfUnit || me.flags.isBureau || me.flags.isTreasurer || isPublicStatus;
+  // un responsable sollicité sur le projet le voit, même en brouillon
+  const solicited = myPosts.length ? !!(await one(db, `SELECT 1 AS x FROM requests WHERE project_id = ? AND to_post_id IN (${myPosts.map(() => '?').join(',')})`, p.id, ...myPosts).catch(() => null)) : false;
+  const canSee = me.admin || isOwner || isMember || inChain || functional || solicited || headOfUnit || me.flags.isBureau || me.flags.isTreasurer || isPublicStatus;
   const editable = ['brouillon', 'complement', 'ajourne'].includes(p.status);
   const pending = approvals.filter((a) => a.decision === 'pending' && (me.admin || myPosts.includes(a.post_id)));
   return {
@@ -101,7 +104,9 @@ async function fullProject(db, me, id) {
   const members = await all(db, 'SELECT pe.id, pe.name FROM project_members m JOIN people pe ON pe.id = m.person_id WHERE m.project_id = ?', id);
   const rules = await getRules(db);
   const { approvals: _a, ...can } = acc;
-  return { project: p, lines, approvals, events, members, can, rules, spend: sumLines(lines, 'depense'), income: sumLines(lines, 'recette') };
+  const requests = await requestsOfProject(db, id);
+  can.canSolicit = acc.isOwner || acc.isMember || me.admin;
+  return { project: p, lines, approvals, events, members, can, rules, requests, spend: sumLines(lines, 'depense'), income: sumLines(lines, 'recette') };
 }
 
 async function saveLines(db, id, lines) {
@@ -237,6 +242,7 @@ export function registerProjects(app) {
         if (ids.length) {
           parts.push(`p.owner_post_id IN (SELECT id FROM posts WHERE parent_id IN (${ids.map(() => '?').join(',')}) OR functional_id IN (${ids.map(() => '?').join(',')}))`); args.push(...ids, ...ids);
           parts.push(`p.id IN (SELECT project_id FROM approvals WHERE post_id IN (${ids.map(() => '?').join(',')}))`); args.push(...ids);
+          parts.push(`p.id IN (SELECT project_id FROM requests WHERE project_id IS NOT NULL AND to_post_id IN (${ids.map(() => '?').join(',')}))`); args.push(...ids);
         }
         where.push(parts.length ? `(${parts.join(' OR ')})` : '0');
       }

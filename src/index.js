@@ -4,6 +4,8 @@ import { DEFAULT_RULES, APP_NAME } from '../public/js/shared.js';
 import { sendMails, magicLinkMail, siteUrl, later, mailReady } from './mail.js';
 import { parse, httpError, all, one, run, today, str, bool, getRules, postsOf, need } from './util.js';
 import { registerProjects, runDaily } from './projects.js';
+import { registerRequests, inboxCount } from './requests.js';
+import { registerPlanning } from './planning.js';
 
 const app = new Hono().basePath('/api');
 const COOKIE = 'cap_s';
@@ -133,7 +135,8 @@ app.get('/me', async (c) => {
   if (!me) return c.json({ anonymous: true, mail: mailReady(c.env) });
   const rules = await getRules(c.env.DB);
   const units = await all(c.env.DB, 'SELECT id, code, name, kind, parent_id FROM units WHERE active = 1 ORDER BY sort');
-  return c.json({ ...me, rules, units, mail: mailReady(c.env) });
+  const inbox = await inboxCount(c.env.DB, me);
+  return c.json({ ...me, rules, units, inbox, mail: mailReady(c.env) });
 });
 
 // ---------- organigramme (lecture : tout le monde connecté) ----------
@@ -268,7 +271,10 @@ admin.get('/state', async (c) => {
 admin.post('/cron', async (c) => c.json(await runDaily(c.env, c)));
 
 app.route('/admin', admin);
+// le planning d'abord : son flux iCal se lit sans session, avant les middlewares des autres modules
+registerPlanning(app);
 registerProjects(app);
+registerRequests(app);
 
 export default {
   fetch: app.fetch,

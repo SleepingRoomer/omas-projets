@@ -11,9 +11,9 @@ Cap est la plateforme des projets d'OMAS Île-de-France : chaque responsable dé
 
 ## Technique
 - Cloudflare Workers + Hono (`src/`) + D1 (SQLite), interface en modules JS sans compilation (`public/js/`), routes en `#/...`. Logique partagée serveur et navigateur dans `public/js/shared.js` (niveaux, étapes, codes projet, champs obligatoires).
-- `src/index.js` : sessions, lien magique, organigramme, administration. `src/projects.js` : projets, circuit, décisions, calendrier, tableau de bord, export, tâche quotidienne. `src/mail.js` : Brevo. `src/util.js` : requêtes et postes.
+- `src/index.js` : sessions, lien magique, organigramme, administration. `src/projects.js` : projets, circuit, décisions, tableau de bord, export, tâche quotidienne. `src/requests.js` : demandes entre responsables. `src/planning.js` : planning et flux iCal. `src/mail.js` : Brevo. `src/util.js` : requêtes et postes.
 - Formule gratuite : 50 requêtes D1 et 50 appels sortants par exécution, 100 paramètres par requête.
-- Migrations : `migrations/00xx_*.sql`, une instruction par ligne (à coller dans la console D1 en production). Dernière : 0002. L'organigramme IDF est en données (0002), modifiable depuis l'administration.
+- Migrations : `migrations/00xx_*.sql`, une instruction par ligne (à coller dans la console D1 en production). Dernière : 0003 (demandes, planning). L'organigramme IDF est en données (0002), modifiable depuis l'administration.
 - Secrets du Worker : `ADMIN_PASSWORD` (compte technique), `BREVO_API_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME` (facultatif), `MAIL_REPLY_TO` (facultatif), `SITE_URL` (pour les liens dans les e-mails envoyés par la tâche planifiée). En local, `DEV_LINKS=1` renvoie le lien de connexion dans la réponse quand Brevo n'est pas configuré.
 - Tâche planifiée `0 7 * * *` (UTC) : escalade des demandes en retard, rappels à 48 h, rappels de bilan, ménage.
 - Sécurité : `public/_headers` (CSP stricte, pas de gestionnaire en ligne), cookies httpOnly, contrôle d'origine sur les écritures, limite de tentatives par adresse IP.
@@ -26,6 +26,9 @@ Cap est la plateforme des projets d'OMAS Île-de-France : chaque responsable dé
 - Refus, ajournement et complément exigent un motif. Un porteur ne décide jamais sur son propre projet.
 - Le code `EXEX-IDF-UNITE-DOMAINE-NNN` est attribué à la validation, numéro séquentiel par exercice (1er septembre au 31 août).
 - Un porteur avec un projet passé non clôturé depuis plus de 15 jours ne peut pas déposer de projet avec budget.
+
+- Demandes : une demande part d'une personne vers un POSTE (titulaire et suppléant la reçoivent), avec un fil de messages. La personne sollicitée répond une fois (acceptée, bien noté, déclinée avec motif), puis l'échange continue. Une demande rattachée à un projet donne au poste sollicité l'accès à la fiche, même en brouillon ; acceptée, le projet entre dans son planning.
+- Planning : rien n'est saisi, tout se déduit des projets (date, jalons `plan_com` et `plan_logi`, bilan à J+15 pour le porteur) et des décisions en attente. Le flux iCal `/api/ical/<jeton>.ics` se lit sans session : le jeton personnel (48 caractères hexadécimaux) suffit, et le régénérer coupe l'ancien lien. `registerPlanning` est appelé avant les autres modules pour que leurs middlewares de connexion ne s'appliquent pas au flux.
 
 ## Travailler en local
 ```bash
