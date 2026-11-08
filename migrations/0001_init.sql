@@ -1,0 +1,27 @@
+-- Cap : schéma initial. Une instruction par ligne pour pouvoir coller dans la console D1.
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS units (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, kind TEXT NOT NULL, parent_id INTEGER, sort INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, unit_id INTEGER NOT NULL, code TEXT NOT NULL, label TEXT NOT NULL, domain TEXT, parent_id INTEGER, functional_id INTEGER, is_bureau INTEGER NOT NULL DEFAULT 0, is_treasurer INTEGER NOT NULL DEFAULT 0, is_head INTEGER NOT NULL DEFAULT 0, sort INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1);
+CREATE INDEX IF NOT EXISTS posts_unit ON posts(unit_id);
+CREATE INDEX IF NOT EXISTS posts_parent ON posts(parent_id);
+CREATE TABLE IF NOT EXISTS people (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE, phone TEXT, is_admin INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now')), last_login_at TEXT);
+CREATE TABLE IF NOT EXISTS assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, person_id INTEGER NOT NULL, post_id INTEGER NOT NULL, start_date TEXT, end_date TEXT, UNIQUE(person_id, post_id));
+CREATE INDEX IF NOT EXISTS assignments_post ON assignments(post_id);
+CREATE TABLE IF NOT EXISTS deputies (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL, person_id INTEGER NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL, created_by INTEGER);
+CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE, seq INTEGER, exercise TEXT NOT NULL, title TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'autre', unit_id INTEGER NOT NULL, domain TEXT, owner_id INTEGER NOT NULL, owner_post_id INTEGER, status TEXT NOT NULL DEFAULT 'brouillon', level INTEGER NOT NULL DEFAULT 0, starts_at TEXT, ends_at TEXT, start_time TEXT, location TEXT, location_kind TEXT NOT NULL DEFAULT 'fac', audience TEXT, expected INTEGER, summary TEXT, objective TEXT, needs_room INTEGER NOT NULL DEFAULT 0, needs_material INTEGER NOT NULL DEFAULT 0, needs_com INTEGER NOT NULL DEFAULT 0, external_speaker INTEGER NOT NULL DEFAULT 0, external_com INTEGER NOT NULL DEFAULT 0, partner INTEGER NOT NULL DEFAULT 0, national INTEGER NOT NULL DEFAULT 0, details TEXT, risks TEXT, plan_com TEXT, plan_logi TEXT, public_link INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')), submitted_at TEXT, decided_at TEXT, validated_at TEXT, done_at TEXT, closed_at TEXT, due_at TEXT, decision_note TEXT, postponed_to TEXT);
+CREATE INDEX IF NOT EXISTS projects_unit ON projects(unit_id);
+CREATE INDEX IF NOT EXISTS projects_owner ON projects(owner_id);
+CREATE INDEX IF NOT EXISTS projects_status ON projects(status);
+CREATE TABLE IF NOT EXISTS project_members (project_id INTEGER NOT NULL, person_id INTEGER NOT NULL, PRIMARY KEY(project_id, person_id));
+CREATE TABLE IF NOT EXISTS budget_lines (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'depense', label TEXT NOT NULL, amount REAL NOT NULL DEFAULT 0, payment TEXT, sort INTEGER NOT NULL DEFAULT 0);
+CREATE INDEX IF NOT EXISTS budget_project ON budget_lines(project_id);
+CREATE TABLE IF NOT EXISTS approvals (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, step TEXT NOT NULL, post_id INTEGER, person_id INTEGER, decision TEXT NOT NULL DEFAULT 'pending', comment TEXT, due_at TEXT, decided_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), escalated INTEGER NOT NULL DEFAULT 0, round INTEGER NOT NULL DEFAULT 1, postponed_to TEXT);
+CREATE INDEX IF NOT EXISTS approvals_project ON approvals(project_id);
+CREATE INDEX IF NOT EXISTS approvals_post ON approvals(post_id, decision);
+CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, person_id INTEGER, kind TEXT NOT NULL, detail TEXT, at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE INDEX IF NOT EXISTS events_project ON events(project_id);
+CREATE TABLE IF NOT EXISTS auth_sessions (token TEXT PRIMARY KEY, person_id INTEGER, kind TEXT NOT NULL DEFAULT 'person', expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE TABLE IF NOT EXISTS magic_links (token TEXT PRIMARY KEY, person_id INTEGER NOT NULL, expires_at TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE TABLE IF NOT EXISTS login_failures (ip TEXT NOT NULL, at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE TABLE IF NOT EXISTS mail_log (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, ref TEXT, to_email TEXT NOT NULL, subject TEXT NOT NULL, status TEXT NOT NULL, error TEXT, at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE TABLE IF NOT EXISTS cron_log (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL DEFAULT (datetime('now')), detail TEXT);
