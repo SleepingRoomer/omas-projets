@@ -8,13 +8,14 @@ function renderNav() {
   const me = state.me;
   if (!me || me.anonymous) { nav.innerHTML = ''; return; }
   const links = [['#/', 'Mon espace']];
+  links.push(['#/demandes', me.inbox ? `Demandes <span class="badge">${me.inbox}</span>` : 'Demandes']);
   if (me.flags.isValidator) links.push(['#/a-valider', 'À valider']);
-  links.push(['#/calendrier', 'Calendrier']);
+  links.push(['#/planning', 'Planning']);
   if (me.flags.isValidator) links.push(['#/tableau', 'Tableau de bord']);
   links.push(['#/organigramme', 'Organigramme']);
   if (me.admin) links.push(['#/admin', 'Administration']);
   const here = (location.hash || '#/').split('?')[0];
-  nav.innerHTML = links.map(([h, l]) => `<a href="${h}" class="${here === h ? 'active' : ''}">${esc(l)}</a>`).join('')
+  nav.innerHTML = links.map(([h, l]) => `<a href="${h}" class="${here === h || (h !== '#/' && here.startsWith(h)) ? 'active' : ''}">${l.includes('<span') ? l : esc(l)}</a>`).join('')
     + `<span class="who">${esc(me.person?.name || 'Compte technique')}</span><button id="logout">Se déconnecter</button>`;
   document.getElementById('logout')?.addEventListener('click', async () => {
     await api('/logout', { method: 'POST' });
@@ -86,14 +87,19 @@ const routes = [
   [/^#\/nouveau(?:\/(simple|complet))?$/, 'auth', async (m) => (await import('./project.js')).editView(app, null, m[1] || 'simple')],
   [/^#\/projet\/(\d+)\/modifier$/, 'auth', async (m) => (await import('./project.js')).editView(app, m[1])],
   [/^#\/projet\/(\d+)$/, 'auth', async (m) => (await import('./project.js')).projectView(app, m[1])],
-  [/^#\/calendrier$/, 'auth', async () => (await import('./calendar.js')).calendarView(app)],
+  [/^#\/calendrier$/, 'auth', async () => (await import('./planning.js')).planningView(app, new URLSearchParams('vue=localite&format=liste'))],
+  [/^#\/planning$/, 'auth', async (m, params) => (await import('./planning.js')).planningView(app, params)],
+  [/^#\/demandes$/, 'auth', async () => (await import('./requests.js')).requestsView(app, 'in')],
+  [/^#\/demandes\/envoyees$/, 'auth', async () => (await import('./requests.js')).requestsView(app, 'out')],
+  [/^#\/demandes\/nouvelle$/, 'auth', async (m, params) => (await import('./requests.js')).newRequestView(app, params)],
+  [/^#\/demande\/(\d+)$/, 'auth', async (m) => (await import('./requests.js')).requestView(app, m[1])],
   [/^#\/tableau$/, 'auth', async () => (await import('./dashboard.js')).dashboardView(app)],
   [/^#\/organigramme$/, 'auth', async () => (await import('./org.js')).orgView(app)],
   [/^#\/admin(?:\/([\w-]+))?$/, 'auth', async (m) => (await import('./admin.js')).adminView(app, m[1] || 'personnes')],
 ];
 
 export async function route() {
-  if (!state.me) { try { state.me = await api('/me'); } catch { state.me = { anonymous: true }; } }
+  if (!state.me || !state.me.anonymous) { try { state.me = await api('/me'); } catch { state.me = { anonymous: true }; } }
   const [hash, qs] = (location.hash || '#/').split('?');
   const params = new URLSearchParams(qs || '');
   renderNav();

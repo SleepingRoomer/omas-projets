@@ -26,7 +26,8 @@ export function list(rows, opts = {}, emptyText = 'Rien pour le moment.') {
 export async function homeView(app) {
   setTitle('Mon espace');
   const me = state.me;
-  const [mine, toValidate] = await Promise.all([api('/projects?scope=mine'), me.flags.isValidator ? api('/projects?scope=validate') : []]);
+  const [mine, toValidate, inbox] = await Promise.all([api('/projects?scope=mine'), me.flags.isValidator ? api('/projects?scope=validate') : [], me.inbox ? api('/requests?box=in') : []]);
+  const openReq = inbox.filter((r) => r.status === 'ouverte');
   const today = new Date().toISOString().slice(0, 10);
   const open = mine.filter((p) => ['brouillon', 'depose', 'complement', 'valide', 'ajourne'].includes(p.status) && (p.starts_at || today) >= today);
   const toClose = mine.filter((p) => ['valide', 'realise'].includes(p.status) && p.starts_at && p.starts_at < today);
@@ -36,11 +37,12 @@ export async function homeView(app) {
     <div class="page-head"><div><h1>Bonjour ${esc((me.person?.name || '').split(' ')[0])}</h1>
       <p class="meta">${me.posts.length ? me.posts.map((p) => `${esc(p.label)} (${esc(p.unit_code)})${p.deputy ? ' · suppléance' : ''}`).join(' · ') : 'Aucun poste dans l\'organigramme pour l\'instant'}</p></div>
       <span class="spacer"></span>
-      <a class="btn primary" href="#/nouveau/simple">Déclarer un projet</a><a class="btn" href="#/nouveau/complet">Projet avec budget ou moyens</a></div>
+      <a class="btn primary" href="#/nouveau/simple">Déclarer un projet</a><a class="btn" href="#/nouveau/complet">Projet avec budget ou moyens</a><a class="btn quiet" href="#/demandes/nouvelle">Solliciter un responsable</a></div>
     ${!me.posts.length && !me.admin ? '<div class="alert warn">Tu n\'es rattaché à aucun poste : tu peux consulter, mais pas encore déposer. Demande au secrétaire de la localité de te placer dans l\'organigramme.</div>' : ''}
     <div class="facts"><div><div class="v">${open.length}</div><div class="l">projets à venir</div></div><div><div class="v">${mine.filter((p) => p.status === 'depose').length}</div><div class="l">en instruction</div></div>
       ${me.flags.isValidator ? `<div><div class="v" style="color:${toValidate.length ? 'var(--r)' : 'inherit'}">${toValidate.length}</div><div class="l">décisions attendues de moi</div></div>` : ''}
       <div><div class="v">${mine.filter((p) => ['cloture', 'realise'].includes(p.status)).length}</div><div class="l">réalisés cette année</div></div><div><div class="v">${money(spendOk)}</div><div class="l">budget validé</div></div></div>
+    ${openReq.length ? `<h2>Demandes qui t'attendent <a class="btn small quiet" href="#/demandes">Tout voir</a></h2><div class="plist">${openReq.slice(0, 4).map((r) => `<a class="pcard soon" href="#/demande/${r.id}"><div class="when"><b>↓</b><span>${esc(new Date(`${r.updated_at.replace(' ', 'T')}Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }))}</span></div><div class="what"><strong>${esc(r.subject)}</strong><div class="sub">De ${esc(r.from_name)}${r.from_post_label ? `, ${esc(r.from_post_label)}` : ''} · pour ${esc(r.to_post_label)}</div></div><div class="side"><span class="pill r-ouverte">À répondre</span></div></a>`).join('')}</div>` : ''}
     ${toValidate.length ? `<h2>À valider par moi <a class="btn small quiet" href="#/a-valider">Tout voir</a></h2>${list(toValidate.slice(0, 5), { showDue: true })}` : ''}
     ${toClose.length ? `<h2>Projets passés à clôturer</h2><p class="muted small">Marque-les comme réalisés et dépose le bilan. Un projet passé non clôturé bloque les nouvelles demandes de budget.</p>${list(toClose)}` : ''}
     <h2>Mes projets à venir</h2>

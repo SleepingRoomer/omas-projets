@@ -1,7 +1,7 @@
 // Fiche projet : création, modification, consultation, décisions
 import { api, esc, nl, toast, setTitle, statusPill, domainPill, levelPill, money, longDate, dateTime, daysLeft, field, select, val, chk, ask } from './ui.js';
 import { state } from './app.js';
-import { TYPES, DOMAINS, POLE_CODES, FILIERE_CODES, LOCATION_KINDS, LEVEL_LABELS, STEP_LABELS, computeLevel, levelReasons, missingFields, sumLines, stepsForLevel, delayDays } from './shared.js';
+import { TYPES, DOMAINS, POLE_CODES, FILIERE_CODES, LOCATION_KINDS, LEVEL_LABELS, STEP_LABELS, REQUEST_KINDS, REQUEST_STATUSES, computeLevel, levelReasons, missingFields, sumLines, stepsForLevel, delayDays } from './shared.js';
 
 const PAYMENTS = [['carte', 'Carte de l\'antenne'], ['remboursement', 'Avance puis remboursement'], ['virement', 'Virement direct par le trésorier'], ['gratuit', 'Gratuit ou prêté']];
 
@@ -148,6 +148,7 @@ export async function editView(app, id, mode = 'simple') {
 export async function projectView(app, id) {
   const d = await api(`/projects/${id}`);
   const { project: p, lines, approvals, events, members, can, rules, spend, income } = d;
+  const reqs = d.requests || [];
   setTitle(p.title);
   const me = state.me;
   const lastRound = Math.max(0, ...approvals.map((a) => a.round));
@@ -205,6 +206,11 @@ export async function projectView(app, id) {
       </div>
     </div>
 
+    <div class="panel"><div class="row"><h2 style="margin:0">Pôles et responsables sollicités</h2><span class="spacer"></span>${can.canSolicit && !['refuse', 'abandonne', 'cloture'].includes(p.status) ? `<a class="btn small" href="#/demandes/nouvelle?projet=${p.id}">Solliciter un responsable</a>` : ''}</div>
+      ${reqs.length ? `<div class="circuit">${reqs.map((r) => `<a class="ap ${r.status === 'acceptee' || r.status === 'vue' ? 'ok' : r.status === 'declinee' ? 'refuse' : r.status === 'ouverte' ? 'pending' : 'void'}" href="#/demande/${r.id}" style="text-decoration:none;color:inherit"><div class="dot"></div><div><b>${esc(r.to_post_label)}</b> <span class="small muted">· ${esc(r.to_unit)} · ${esc(REQUEST_KINDS[r.kind] || r.kind)}</span><div class="who">${esc(r.subject)}</div></div><div class="small" style="text-align:right">${esc(REQUEST_STATUSES[r.status]?.label || r.status)}${r.answered_by_name ? `<br><span class="muted">${esc(r.answered_by_name)}</span>` : ''}</div></a>`).join('')}</div>`
+    : `<p class="muted small" style="margin-top:8px">Un autre pôle ou une filière doit être au courant, ou peut t'aider ? Sollicite son responsable : il reçoit la demande par e-mail, répond dans Cap, et l'échange reste attaché au projet.</p>`}
+    </div>
+
     <div class="panel"><h2>Circuit de validation</h2>
       ${approvals.length ? `<p class="muted small">Niveau ${p.level} : ${esc(LEVEL_LABELS[p.level])}. Étapes : ${stepsForLevel(p.level).map((s) => esc(STEP_LABELS[s])).join(', ')}${stepsForLevel(p.level).includes('bureau') ? ` (bureau : ${rules.quorum} voix suffisent)` : ''}.</p>
       <div class="circuit">${current.map((a) => `<div class="ap ${esc(a.decision)}"><div class="dot"></div><div><b>${esc(a.post_label || stepName(a))}</b> <span class="small muted">· ${esc(stepName(a))}</span><div class="who">${a.holders?.length ? esc(a.holders.join(', ')) : '<span style="color:var(--ko)">poste vacant</span>'}</div>${a.comment && a.decision !== 'pending' ? `<div class="cmt">${esc(a.comment)}</div>` : ''}${a.comment?.startsWith('Escalade') ? `<div class="cmt">${esc(a.comment)}</div>` : ''}</div>
@@ -216,7 +222,7 @@ export async function projectView(app, id) {
     <div class="panel"><h2>Historique et échanges</h2>
       <ul class="timeline">${events.map((e) => {
     const det = e.detail ? JSON.parse(e.detail) : {};
-    const labels = { cree: 'a créé la fiche', depose: `a déposé le projet (niveau ${det.level ?? ''})`, decision_ok: 'a validé', decision_refuse: 'a refusé', decision_ajourne: 'a ajourné', decision_complement: 'a demandé un complément', valide: `Projet validé, code ${det.code || ''}`, escalade: `Escalade automatique : ${det.from || ''} → ${det.to || ''}`, abandonne: 'a abandonné le projet', realise: 'a marqué le projet comme réalisé', cloture: 'a clôturé le projet', commentaire: '', modifie_admin: 'a modifié la fiche après validation' };
+    const labels = { cree: 'a créé la fiche', depose: `a déposé le projet (niveau ${det.level ?? ''})`, decision_ok: 'a validé', decision_refuse: 'a refusé', decision_ajourne: 'a ajourné', decision_complement: 'a demandé un complément', valide: `Projet validé, code ${det.code || ''}`, escalade: `Escalade automatique : ${det.from || ''} → ${det.to || ''}`, abandonne: 'a abandonné le projet', realise: 'a marqué le projet comme réalisé', cloture: 'a clôturé le projet', commentaire: '', modifie_admin: 'a modifié la fiche après validation', sollicitation: `a sollicité ${det.to || ''} responsable${det.to > 1 ? 's' : ''}`, demande_acceptee: `a accepté de participer (${det.post || ''})`, demande_vue: `a pris note (${det.post || ''})`, demande_declinee: `a décliné la sollicitation (${det.post || ''})` };
     const cls = e.kind.startsWith('decision_ok') || e.kind === 'valide' || e.kind === 'depose' ? 'approve' : e.kind.includes('refuse') || e.kind === 'abandonne' ? 'refuse' : '';
     return `<li class="${cls}"><span class="who">${esc(e.name || 'Système')}</span> ${esc(labels[e.kind] ?? e.kind)} <span class="when">· ${esc(dateTime(e.at))}</span>${det.comment || det.body ? `<div class="comment">${nl(det.body || det.comment)}</div>` : ''}</li>`;
   }).join('')}</ul>
