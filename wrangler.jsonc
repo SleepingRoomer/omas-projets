@@ -15,7 +15,7 @@
     {
       "binding": "DB",
       "database_name": "omas-projets",
-      "database_id": "A_REMPLACER_APRES_CREATION",
+      "database_id": "3913ffcc-a29c-4bd0-b0f6-11ede6cd0ead",
       "migrations_dir": "migrations"
     }
   ]
