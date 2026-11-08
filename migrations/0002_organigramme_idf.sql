@@ -1,4 +1,3 @@
--- Organigramme IDF 2026-2027 : unités et postes génériques (aucune personne). Identifiants fixes pour pouvoir y faire référence.
 INSERT INTO units (id, code, name, kind, parent_id, sort) VALUES (1, 'IDF', 'OMAS Île-de-France', 'localite', NULL, 0);
 INSERT INTO units (id, code, name, kind, parent_id, sort) VALUES (2, 'SU', 'Sorbonne Université', 'antenne', 1, 1);
 INSERT INTO units (id, code, name, kind, parent_id, sort) VALUES (3, 'UPC', 'Université Paris Cité', 'antenne', 1, 2);
